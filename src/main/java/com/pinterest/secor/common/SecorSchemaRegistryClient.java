@@ -20,6 +20,7 @@ package com.pinterest.secor.common;
 
 import io.confluent.kafka.schemaregistry.client.CachedSchemaRegistryClient;
 import io.confluent.kafka.schemaregistry.client.SchemaRegistryClient;
+import io.confluent.kafka.schemaregistry.client.SchemaMetadata;
 import io.confluent.kafka.serializers.KafkaAvroDeserializer;
 import org.apache.avro.Schema;
 import org.apache.avro.generic.GenericRecord;
@@ -29,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
+
 
 public class SecorSchemaRegistryClient {
 
@@ -70,8 +72,25 @@ public class SecorSchemaRegistryClient {
     public Schema getSchema(String topic) {
         Schema schema = schemas.get(topic);
         if (schema == null) {
+        	SchemaMetadata meta;
+        	try {
+			meta = schemaRegistryClient.getLatestSchemaMetadata(topic);
+			if (meta != null) {
+				schema = schemaRegistryClient.getByID(meta.getId());
+				schemas.put(topic, schema);
+			}
+        	}
+        	catch (Exception e) {
+        		throw new IllegalStateException("Avro schema not found for topic " + topic, e);
+        	}
+       	}
+
+        if (schema == null) {
             throw new IllegalStateException("Avro schema not found for topic " + topic);
         }
         return schema;
     }
+
+
+
 }
